@@ -1,9 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FileAudio, Download, Play, Pause } from "lucide-react";
-import { useState, useRef } from "react";
+import { FileAudio, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import AudioPlayer from "./AudioPlayer";
 
 interface VoiceProject {
   id: string;
@@ -21,44 +20,42 @@ interface VoiceProjectCardProps {
 }
 
 const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: "bg-muted text-muted-foreground",
       analyzing: "bg-primary/20 text-primary",
       ready: "bg-accent/20 text-accent",
-      generating: "bg-primary/20 text-primary animate-pulse",
+      generating: "bg-primary/20 text-primary",
       completed: "bg-green-500/20 text-green-400",
       failed: "bg-destructive/20 text-destructive",
     };
     return colors[status] || colors.draft;
   };
 
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
-    setIsPlaying(!isPlaying);
+  const getStatusText = (status: string) => {
+    const texts: Record<string, string> = {
+      draft: "Draft",
+      analyzing: "Analyzing Voice",
+      ready: "Ready",
+      generating: "Generating Audio",
+      completed: "Completed",
+      failed: "Failed",
+    };
+    return texts[status] || status;
   };
 
-  const handleDownload = () => {
-    if (project.generated_audio_url) {
-      window.open(project.generated_audio_url, "_blank");
-    }
-  };
+  const isProcessing = ['analyzing', 'generating'].includes(project.status);
 
   return (
     <Card className="p-6 backdrop-blur-xl bg-card/80 border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-            <FileAudio className="w-6 h-6 text-primary" />
+            {isProcessing ? (
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            ) : (
+              <FileAudio className="w-6 h-6 text-primary" />
+            )}
           </div>
           <div>
             <h3 className="font-semibold text-lg">{project.name}</h3>
@@ -68,51 +65,37 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
           </div>
         </div>
         <Badge className={getStatusColor(project.status)}>
-          {project.status}
+          {isProcessing && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+          {getStatusText(project.status)}
         </Badge>
       </div>
 
       {project.script_text && (
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
           {project.script_text}
         </p>
       )}
 
-      {project.generated_audio_url && (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={togglePlay}
-            className="flex-1"
-          >
-            {isPlaying ? (
-              <>
-                <Pause className="w-4 h-4 mr-2" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 mr-2" />
-                Preview
-              </>
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleDownload}
-            className="px-3"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-          <audio
-            ref={audioRef}
-            src={project.generated_audio_url}
-            onEnded={() => setIsPlaying(false)}
-            className="hidden"
-          />
+      {isProcessing && (
+        <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
+          <p className="text-sm text-primary">
+            {project.status === 'analyzing' 
+              ? '🎤 Analyzing your voice sample...'
+              : '🎵 Generating your cloned voice...'}
+          </p>
         </div>
+      )}
+
+      {project.status === 'failed' && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <p className="text-sm text-destructive">
+            ⚠️ Voice cloning failed. Please try again.
+          </p>
+        </div>
+      )}
+
+      {project.generated_audio_url && project.status === 'completed' && (
+        <AudioPlayer audioUrl={project.generated_audio_url} projectName={project.name} />
       )}
     </Card>
   );

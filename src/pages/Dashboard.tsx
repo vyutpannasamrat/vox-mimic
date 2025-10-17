@@ -1,53 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { Mic, LogOut, Plus, Sparkles } from "lucide-react";
 import VoiceProjectCard from "@/components/VoiceProjectCard";
 import CreateProjectDialog from "@/components/CreateProjectDialog";
-
-interface VoiceProject {
-  id: string;
-  name: string;
-  status: string;
-  created_at: string;
-  voice_sample_url: string | null;
-  script_text: string | null;
-  generated_audio_url: string | null;
-}
+import { useRealtimeProjects } from "@/hooks/useRealtimeProjects";
 
 const Dashboard = () => {
-  const [projects, setProjects] = useState<VoiceProject[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  const loadProjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("voice_projects")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error loading projects",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { projects, loading, refresh } = useRealtimeProjects();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -134,7 +98,7 @@ const Dashboard = () => {
               <VoiceProjectCard
                 key={project.id}
                 project={project}
-                onUpdate={loadProjects}
+                onUpdate={refresh}
               />
             ))}
           </div>
@@ -144,7 +108,7 @@ const Dashboard = () => {
       <CreateProjectDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        onSuccess={loadProjects}
+        onSuccess={refresh}
       />
     </div>
   );

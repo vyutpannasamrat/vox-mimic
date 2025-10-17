@@ -6,7 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Sparkles } from "lucide-react";
+import { Upload, Sparkles, Loader2 } from "lucide-react";
+import { z } from "zod";
+
+const projectSchema = z.object({
+  name: z.string().trim().min(1, "Project name is required").max(100, "Name must be less than 100 characters"),
+  script: z.string().trim().min(10, "Script must be at least 10 characters").max(5000, "Script must be less than 5000 characters"),
+});
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -38,10 +44,31 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !script || !audioFile) {
+    
+    // Validate inputs
+    const validation = projectSchema.safeParse({ name, script });
+    if (!validation.success) {
       toast({
-        title: "Missing information",
-        description: "Please fill in all fields and upload a voice sample",
+        title: "Validation Error",
+        description: validation.error.errors[0].message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!audioFile) {
+      toast({
+        title: "Missing voice sample",
+        description: "Please upload an audio file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (audioFile.size > 20 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Audio file must be less than 20MB",
         variant: "destructive",
       });
       return;
@@ -68,20 +95,35 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
         .getPublicUrl(fileName);
 
       // Create project
-      const { error: insertError } = await supabase.from("voice_projects").insert({
-        user_id: user.id,
-        name,
-        script_text: script,
-        voice_sample_url: publicUrl,
-        status: "draft",
-      });
+      const { data: newProject, error: insertError } = await supabase
+        .from("voice_projects")
+        .insert({
+          user_id: user.id,
+          name: validation.data.name,
+          script_text: validation.data.script,
+          voice_sample_url: publicUrl,
+          status: "draft",
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
       toast({
         title: "Project created!",
-        description: "Your voice cloning project has been created successfully",
+        description: "Starting voice cloning process...",
       });
+
+      // Start voice cloning in background
+      supabase.functions
+        .invoke("clone-voice", {
+          body: { projectId: newProject.id },
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Voice cloning error:", error);
+          }
+        });
 
       // Reset form
       setName("");
@@ -161,11 +203,14 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
             disabled={loading}
           >
             {loading ? (
-              "Creating..."
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating & Cloning Voice...
+              </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Create Project
+                Create & Clone Voice
               </>
             )}
           </Button>
