@@ -9,6 +9,8 @@ interface VoiceProject {
   voice_sample_url: string | null;
   script_text: string | null;
   generated_audio_url: string | null;
+  total_clips: number | null;
+  clips_uploaded: number | null;
 }
 
 export const useRealtimeProjects = () => {

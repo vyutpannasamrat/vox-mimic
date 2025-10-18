@@ -43,39 +43,80 @@ export type Database = {
       }
       voice_projects: {
         Row: {
+          clips_uploaded: number | null
           created_at: string
           generated_audio_url: string | null
           id: string
           name: string
           script_text: string | null
           status: string | null
+          total_clips: number | null
           updated_at: string
           user_id: string
           voice_sample_url: string | null
         }
         Insert: {
+          clips_uploaded?: number | null
           created_at?: string
           generated_audio_url?: string | null
           id?: string
           name: string
           script_text?: string | null
           status?: string | null
+          total_clips?: number | null
           updated_at?: string
           user_id: string
           voice_sample_url?: string | null
         }
         Update: {
+          clips_uploaded?: number | null
           created_at?: string
           generated_audio_url?: string | null
           id?: string
           name?: string
           script_text?: string | null
           status?: string | null
+          total_clips?: number | null
           updated_at?: string
           user_id?: string
           voice_sample_url?: string | null
         }
         Relationships: []
+      }
+      voice_samples: {
+        Row: {
+          clip_number: number
+          duration: number | null
+          id: string
+          project_id: string
+          sample_url: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          clip_number: number
+          duration?: number | null
+          id?: string
+          project_id: string
+          sample_url: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          clip_number?: number
+          duration?: number | null
+          id?: string
+          project_id?: string
+          sample_url?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_samples_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "voice_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

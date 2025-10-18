@@ -12,6 +12,8 @@ interface VoiceProject {
   voice_sample_url: string | null;
   script_text: string | null;
   generated_audio_url: string | null;
+  total_clips: number | null;
+  clips_uploaded: number | null;
 }
 
 interface VoiceProjectCardProps {
@@ -23,7 +25,9 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: "bg-muted text-muted-foreground",
+      recording: "bg-blue-500/20 text-blue-400",
       analyzing: "bg-primary/20 text-primary",
+      training: "bg-purple-500/20 text-purple-400",
       ready: "bg-accent/20 text-accent",
       generating: "bg-primary/20 text-primary",
       completed: "bg-green-500/20 text-green-400",
@@ -35,7 +39,9 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
   const getStatusText = (status: string) => {
     const texts: Record<string, string> = {
       draft: "Draft",
+      recording: "Recording",
       analyzing: "Analyzing Voice",
+      training: "Training Model",
       ready: "Ready",
       generating: "Generating Audio",
       completed: "Completed",
@@ -44,7 +50,7 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
     return texts[status] || status;
   };
 
-  const isProcessing = ['analyzing', 'generating'].includes(project.status);
+  const isProcessing = ['analyzing', 'generating', 'training'].includes(project.status);
 
   return (
     <Card className="p-6 backdrop-blur-xl bg-card/80 border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
@@ -76,11 +82,21 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
         </p>
       )}
 
+      {project.status === 'recording' && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <p className="text-sm text-blue-400">
+            🎙️ Recording voice clips: {project.clips_uploaded || 0}/{project.total_clips || 0}
+          </p>
+        </div>
+      )}
+
       {isProcessing && (
         <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
           <p className="text-sm text-primary">
             {project.status === 'analyzing' 
-              ? '🎤 Analyzing your voice sample...'
+              ? '🎤 Analyzing your voice samples...'
+              : project.status === 'training'
+              ? '🧠 Training your custom voice model...'
               : '🎵 Generating your cloned voice...'}
           </p>
         </div>

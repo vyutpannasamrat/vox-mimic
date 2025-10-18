@@ -6,12 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Upload, Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2 } from "lucide-react";
 import { z } from "zod";
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, "Project name is required").max(100, "Name must be less than 100 characters"),
-  script: z.string().trim().min(10, "Script must be at least 10 characters").max(5000, "Script must be less than 5000 characters"),
+  totalClips: z.number().min(10, "Minimum 10 clips required").max(100, "Maximum 100 clips allowed"),
 });
 
 interface CreateProjectDialogProps {
@@ -22,54 +22,20 @@ interface CreateProjectDialogProps {
 
 const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDialogProps) => {
   const [name, setName] = useState("");
-  const [script, setScript] = useState("");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [totalClips, setTotalClips] = useState(30);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith("audio/")) {
-        toast({
-          title: "Invalid file",
-          description: "Please upload an audio file",
-          variant: "destructive",
-        });
-        return;
-      }
-      setAudioFile(file);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate inputs
-    const validation = projectSchema.safeParse({ name, script });
+    const validation = projectSchema.safeParse({ name, totalClips });
     if (!validation.success) {
       const firstError = validation.error.issues[0];
       toast({
         title: "Validation Error",
         description: firstError.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!audioFile) {
-      toast({
-        title: "Missing voice sample",
-        description: "Please upload an audio file",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (audioFile.size > 20 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Audio file must be less than 20MB",
         variant: "destructive",
       });
       return;
@@ -81,29 +47,15 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Upload voice sample
-      const fileExt = audioFile.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("voice-samples")
-        .upload(fileName, audioFile);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("voice-samples")
-        .getPublicUrl(fileName);
-
-      // Create project
+      // Create project with recording status
       const { data: newProject, error: insertError } = await supabase
         .from("voice_projects")
         .insert({
           user_id: user.id,
           name: validation.data.name,
-          script_text: validation.data.script,
-          voice_sample_url: publicUrl,
-          status: "draft",
+          status: "recording",
+          total_clips: validation.data.totalClips,
+          clips_uploaded: 0,
         })
         .select()
         .single();
@@ -112,24 +64,12 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
 
       toast({
         title: "Project created!",
-        description: "Starting voice cloning process...",
+        description: "Ready to record your voice clips.",
       });
-
-      // Start voice cloning in background
-      supabase.functions
-        .invoke("clone-voice", {
-          body: { projectId: newProject.id },
-        })
-        .then(({ error }) => {
-          if (error) {
-            console.error("Voice cloning error:", error);
-          }
-        });
 
       // Reset form
       setName("");
-      setScript("");
-      setAudioFile(null);
+      setTotalClips(30);
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -161,41 +101,34 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="bg-background/50"
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="audio">Voice Sample</Label>
-            <div className="relative">
-              <Input
-                id="audio"
-                type="file"
-                accept="audio/*"
-                onChange={handleFileChange}
-                className="bg-background/50"
-              />
-              <Upload className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            </div>
-            {audioFile && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {audioFile.name}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="script">Script</Label>
-            <Textarea
-              id="script"
-              placeholder="Enter the text you want to be spoken in your cloned voice..."
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
-              rows={6}
-              className="bg-background/50 resize-none"
+            <Label htmlFor="clips">Number of Voice Clips</Label>
+            <Input
+              id="clips"
+              type="number"
+              min={10}
+              max={100}
+              value={totalClips}
+              onChange={(e) => setTotalClips(Number(e.target.value))}
+              className="bg-background/50"
             />
             <p className="text-xs text-muted-foreground">
-              {script.length} characters
+              More clips = better voice quality (recommended: 30-50)
             </p>
+          </div>
+
+          <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+            <h4 className="font-semibold text-sm">Next Steps:</h4>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>Record or upload {totalClips} voice clips</li>
+              <li>Each clip will have a suggested phrase</li>
+              <li>AI will train your custom voice model</li>
+              <li>Generate speech with your cloned voice</li>
+            </ul>
           </div>
 
           <Button
@@ -206,12 +139,12 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating & Cloning Voice...
+                Creating Project...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Create & Clone Voice
+                Create Project & Start Recording
               </>
             )}
           </Button>
