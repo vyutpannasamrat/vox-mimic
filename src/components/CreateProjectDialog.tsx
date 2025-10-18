@@ -48,9 +48,10 @@ const CreateProjectDialog = ({ open, onOpenChange, onSuccess }: CreateProjectDia
     // Validate inputs
     const validation = projectSchema.safeParse({ name, script });
     if (!validation.success) {
+      const firstError = validation.error.issues[0];
       toast({
         title: "Validation Error",
-        description: validation.error.errors[0].message,
+        description: firstError.message,
         variant: "destructive",
       });
       return;

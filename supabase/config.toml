@@ -1,1 +1,4 @@
 project_id = "dqdesuxtqragmjyggnkz"
+
+[functions.clone-voice]
+verify_jwt = true
