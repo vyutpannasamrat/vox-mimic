@@ -94,8 +94,10 @@ serve(async (req) => {
           text: project.script_text,
           model_id: 'eleven_monolingual_v1',
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
+            stability: project.voice_stability ?? 0.5,
+            similarity_boost: project.voice_similarity_boost ?? 0.75,
+            style: project.voice_style ?? 0.0,
+            use_speaker_boost: project.voice_speaker_boost ?? true,
           },
         }),
       }

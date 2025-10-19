@@ -11,6 +11,10 @@ interface VoiceProject {
   generated_audio_url: string | null;
   total_clips: number | null;
   clips_uploaded: number | null;
+  voice_stability: number | null;
+  voice_similarity_boost: number | null;
+  voice_style: number | null;
+  voice_speaker_boost: boolean | null;
 }
 
 export const useRealtimeProjects = () => {

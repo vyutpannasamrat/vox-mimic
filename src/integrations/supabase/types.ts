@@ -54,6 +54,10 @@ export type Database = {
           updated_at: string
           user_id: string
           voice_sample_url: string | null
+          voice_similarity_boost: number | null
+          voice_speaker_boost: boolean | null
+          voice_stability: number | null
+          voice_style: number | null
         }
         Insert: {
           clips_uploaded?: number | null
@@ -67,6 +71,10 @@ export type Database = {
           updated_at?: string
           user_id: string
           voice_sample_url?: string | null
+          voice_similarity_boost?: number | null
+          voice_speaker_boost?: boolean | null
+          voice_stability?: number | null
+          voice_style?: number | null
         }
         Update: {
           clips_uploaded?: number | null
@@ -80,6 +88,10 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voice_sample_url?: string | null
+          voice_similarity_boost?: number | null
+          voice_speaker_boost?: boolean | null
+          voice_stability?: number | null
+          voice_style?: number | null
         }
         Relationships: []
       }

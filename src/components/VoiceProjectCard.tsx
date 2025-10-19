@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileAudio, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileAudio, Loader2, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import AudioPlayer from "./AudioPlayer";
+import GenerateVoiceDialog from "./GenerateVoiceDialog";
 
 interface VoiceProject {
   id: string;
@@ -14,6 +17,10 @@ interface VoiceProject {
   generated_audio_url: string | null;
   total_clips: number | null;
   clips_uploaded: number | null;
+  voice_stability: number | null;
+  voice_similarity_boost: number | null;
+  voice_style: number | null;
+  voice_speaker_boost: boolean | null;
 }
 
 interface VoiceProjectCardProps {
@@ -22,6 +29,8 @@ interface VoiceProjectCardProps {
 }
 
 const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       draft: "bg-muted text-muted-foreground",
@@ -110,9 +119,32 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
         </div>
       )}
 
+      {project.status === 'training' && (
+        <div className="mt-4">
+          <Button
+            onClick={() => setShowGenerateDialog(true)}
+            className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generate Voice with Script
+          </Button>
+        </div>
+      )}
+
       {project.generated_audio_url && project.status === 'completed' && (
         <AudioPlayer audioUrl={project.generated_audio_url} projectName={project.name} />
       )}
+
+      <GenerateVoiceDialog
+        open={showGenerateDialog}
+        onOpenChange={setShowGenerateDialog}
+        projectId={project.id}
+        projectName={project.name}
+        initialStability={project.voice_stability ?? 0.5}
+        initialSimilarityBoost={project.voice_similarity_boost ?? 0.75}
+        initialStyle={project.voice_style ?? 0.0}
+        initialSpeakerBoost={project.voice_speaker_boost ?? true}
+      />
     </Card>
   );
 };
