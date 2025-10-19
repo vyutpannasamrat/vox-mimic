@@ -72,7 +72,7 @@ export default function VoiceRecordingStudio({
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const audioUrl = URL.createObjectURL(audioBlob);
         
@@ -207,9 +207,9 @@ export default function VoiceRecordingStudio({
 
       try {
         const fileName = `${user.id}/${projectId}/clip_${clip.clipNumber}.webm`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("voice-samples")
-          .upload(fileName, clip.blob, { upsert: true });
+          .upload(fileName, clip.blob, { upsert: true, contentType: 'audio/webm' });
 
         if (uploadError) throw uploadError;
 

@@ -36,24 +36,45 @@ serve(async (req) => {
       throw new Error('Project not found');
     }
 
+    // Get all voice samples for this project
+    const { data: samples, error: samplesError } = await supabaseClient
+      .from('voice_samples')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('clip_number');
+
+    if (samplesError || !samples || samples.length === 0) {
+      throw new Error('No voice samples found for this project');
+    }
+
+    console.log(`Found ${samples.length} voice samples`);
+
     // Update status to analyzing
     await supabaseClient
       .from('voice_projects')
       .update({ status: 'analyzing' })
       .eq('id', projectId);
 
-    console.log('Analyzing voice sample...');
+    console.log('Analyzing voice samples...');
 
-    // Download the voice sample
-    const voiceResponse = await fetch(project.voice_sample_url);
-    const voiceBlob = await voiceResponse.blob();
-    const voiceArrayBuffer = await voiceBlob.arrayBuffer();
-
-    // Step 1: Add voice to ElevenLabs
+    // Step 1: Add voice to ElevenLabs with multiple samples
     console.log('Adding voice to ElevenLabs...');
     const formData = new FormData();
     formData.append('name', `Voice_${projectId}`);
-    formData.append('files', new Blob([voiceArrayBuffer], { type: 'audio/mpeg' }), 'sample.mp3');
+    
+    // Download and add all voice samples (ElevenLabs accepts multiple files)
+    for (let i = 0; i < Math.min(samples.length, 25); i++) {
+      const sample = samples[i];
+      try {
+        const voiceResponse = await fetch(sample.sample_url);
+        const voiceBlob = await voiceResponse.blob();
+        const voiceArrayBuffer = await voiceBlob.arrayBuffer();
+        formData.append('files', new Blob([voiceArrayBuffer], { type: 'audio/webm' }), `sample_${i}.webm`);
+      } catch (error) {
+        console.warn(`Failed to download sample ${i}:`, error);
+      }
+    }
+    
     formData.append('description', 'Voice clone from VoiceClone AI');
 
     const addVoiceResponse = await fetch('https://api.elevenlabs.io/v1/voices/add', {

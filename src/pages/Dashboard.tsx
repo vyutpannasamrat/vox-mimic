@@ -17,11 +17,13 @@ const Dashboard = () => {
 
   // Auto-open recording studio for projects in recording status
   useEffect(() => {
-    const recordingProject = projects.find(p => p.status === "recording");
-    if (recordingProject && !recordingProjectId) {
-      setRecordingProjectId(recordingProject.id);
+    if (!recordingProjectId) {
+      const recordingProject = projects.find(p => p.status === "recording");
+      if (recordingProject) {
+        setRecordingProjectId(recordingProject.id);
+      }
     }
-  }, [projects]);
+  }, [projects, recordingProjectId]);
 
   const recordingProject = projects.find(p => p.id === recordingProjectId);
 

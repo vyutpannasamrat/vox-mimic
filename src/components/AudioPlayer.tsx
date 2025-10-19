@@ -39,7 +39,17 @@ const AudioPlayer = ({ audioUrl, projectName }: AudioPlayerProps) => {
   }, []);
 
   useEffect(() => {
-    drawWaveform();
+    const animate = () => {
+      drawWaveform();
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [currentTime, duration]);
 
   const drawWaveform = () => {
@@ -56,14 +66,20 @@ const AudioPlayer = ({ audioUrl, projectName }: AudioPlayerProps) => {
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Draw background waveform
+    // Generate consistent waveform bars based on duration
     ctx.fillStyle = 'hsl(var(--muted))';
     const barCount = 100;
     const barWidth = width / barCount;
     const barGap = 2;
+    
+    // Use a seeded random for consistent bars
+    const bars = Array.from({ length: barCount }, (_, i) => {
+      const seed = Math.sin(i * 12.9898 + duration * 78.233) * 43758.5453;
+      return (seed - Math.floor(seed)) * (height * 0.6) + height * 0.2;
+    });
 
     for (let i = 0; i < barCount; i++) {
-      const barHeight = Math.random() * (height * 0.6) + height * 0.2;
+      const barHeight = bars[i];
       const x = i * barWidth;
       const y = (height - barHeight) / 2;
       
@@ -78,7 +94,7 @@ const AudioPlayer = ({ audioUrl, projectName }: AudioPlayerProps) => {
       const x = i * barWidth;
       if (x > progressWidth) break;
       
-      const barHeight = Math.random() * (height * 0.6) + height * 0.2;
+      const barHeight = bars[i];
       const y = (height - barHeight) / 2;
       
       ctx.fillRect(x, y, barWidth - barGap, barHeight);
