@@ -163,6 +163,12 @@ serve(async (req) => {
     }
     
     console.log('Voice added successfully:', voice_id);
+    
+    // Store the voice_id in the database for tracking and cleanup
+    await supabaseClient
+      .from('voice_projects')
+      .update({ elevenlabs_voice_id: voice_id })
+      .eq('id', projectId);
 
     // Update status to generating
     await supabaseClient
@@ -232,12 +238,13 @@ serve(async (req) => {
       .from('voice-samples')
       .getPublicUrl(fileName);
 
-    // Update project with generated audio
+    // Update project with generated audio and clear voice_id
     await supabaseClient
       .from('voice_projects')
       .update({
         generated_audio_url: publicUrl,
         status: 'completed',
+        elevenlabs_voice_id: null, // Clear after successful completion
       })
       .eq('id', projectId);
 

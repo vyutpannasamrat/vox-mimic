@@ -45,6 +45,7 @@ export type Database = {
         Row: {
           clips_uploaded: number | null
           created_at: string
+          elevenlabs_voice_id: string | null
           generated_audio_url: string | null
           id: string
           name: string
@@ -62,6 +63,7 @@ export type Database = {
         Insert: {
           clips_uploaded?: number | null
           created_at?: string
+          elevenlabs_voice_id?: string | null
           generated_audio_url?: string | null
           id?: string
           name: string
@@ -79,6 +81,7 @@ export type Database = {
         Update: {
           clips_uploaded?: number | null
           created_at?: string
+          elevenlabs_voice_id?: string | null
           generated_audio_url?: string | null
           id?: string
           name?: string
