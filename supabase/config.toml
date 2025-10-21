@@ -2,3 +2,6 @@ project_id = "dqdesuxtqragmjyggnkz"
 
 [functions.clone-voice]
 verify_jwt = true
+
+[functions.cleanup-voices]
+verify_jwt = false
