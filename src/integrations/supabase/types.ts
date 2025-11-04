@@ -48,6 +48,7 @@ export type Database = {
           elevenlabs_voice_id: string | null
           generated_audio_url: string | null
           id: string
+          last_generation_at: string | null
           name: string
           script_text: string | null
           status: string | null
@@ -66,6 +67,7 @@ export type Database = {
           elevenlabs_voice_id?: string | null
           generated_audio_url?: string | null
           id?: string
+          last_generation_at?: string | null
           name: string
           script_text?: string | null
           status?: string | null
@@ -84,6 +86,7 @@ export type Database = {
           elevenlabs_voice_id?: string | null
           generated_audio_url?: string | null
           id?: string
+          last_generation_at?: string | null
           name?: string
           script_text?: string | null
           status?: string | null
