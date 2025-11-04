@@ -212,11 +212,25 @@ export default function VoiceRecordingStudio({
     const files = event.target.files;
     if (!files) return;
 
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // P1 #10: 10MB limit
+    const ALLOWED_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 'audio/ogg'];
+
     Array.from(files).forEach((file, index) => {
-      if (!file.type.startsWith("audio/")) {
+      // P1 #10: File size validation
+      if (file.size > MAX_FILE_SIZE) {
         toast({
-          title: "Invalid File",
-          description: `${file.name} is not an audio file.`,
+          title: "File Too Large",
+          description: `${file.name} exceeds the 10MB limit.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // P1 #11: File type validation
+      if (!file.type.startsWith("audio/") || !ALLOWED_TYPES.includes(file.type)) {
+        toast({
+          title: "Invalid File Type",
+          description: `${file.name} is not a supported audio format (MP3, WAV, WebM, OGG).`,
           variant: "destructive",
         });
         return;
@@ -407,7 +421,7 @@ export default function VoiceRecordingStudio({
                 id="file-upload"
                 type="file"
                 multiple
-                accept="audio/*"
+                accept="audio/mpeg,audio/mp3,audio/wav,audio/webm,audio/ogg"
                 className="hidden"
                 onChange={handleFileUpload}
               />

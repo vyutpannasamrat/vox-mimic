@@ -103,8 +103,9 @@ serve(async (req) => {
     const body = await req.json();
     projectId = body.projectId;
     
-    if (!projectId) {
-      throw new Error('Project ID is required');
+    // P1 #9: Input validation
+    if (!projectId || typeof projectId !== 'string' || projectId.length > 100) {
+      throw new Error('Invalid project ID');
     }
     
     console.log('[clone-voice] Processing project:', projectId);
@@ -124,6 +125,37 @@ serve(async (req) => {
     
     console.log('[clone-voice] Project found:', project.name);
 
+    // P1 #8: Rate limiting - check last generation time
+    if (project.last_generation_at) {
+      const lastGenTime = new Date(project.last_generation_at).getTime();
+      const now = Date.now();
+      const cooldownMs = 5 * 60 * 1000; // 5 minute cooldown
+      
+      if (now - lastGenTime < cooldownMs) {
+        const remainingSeconds = Math.ceil((cooldownMs - (now - lastGenTime)) / 1000);
+        throw new Error(`Rate limit: Please wait ${remainingSeconds} seconds before generating again`);
+      }
+    }
+
+    // P1 #9: Validate voice parameters
+    if (project.voice_stability != null && (project.voice_stability < 0 || project.voice_stability > 1)) {
+      throw new Error('Invalid voice_stability value (must be 0-1)');
+    }
+    if (project.voice_similarity_boost != null && (project.voice_similarity_boost < 0 || project.voice_similarity_boost > 1)) {
+      throw new Error('Invalid voice_similarity_boost value (must be 0-1)');
+    }
+    if (project.voice_style != null && (project.voice_style < 0 || project.voice_style > 1)) {
+      throw new Error('Invalid voice_style value (must be 0-1)');
+    }
+
+    // P1 #9: Validate script text
+    if (!project.script_text || project.script_text.trim().length === 0) {
+      throw new Error('Script text is required');
+    }
+    if (project.script_text.length > 10000) {
+      throw new Error('Script text is too long (max 10000 characters)');
+    }
+
     // Get all voice samples for this project
     console.log('[clone-voice] Fetching voice samples...');
     const { data: samples, error: samplesError } = await supabaseClient
@@ -139,11 +171,14 @@ serve(async (req) => {
 
     console.log(`[clone-voice] Found ${samples.length} voice samples`);
 
-    // Update status to analyzing
+    // Update status to analyzing and set last_generation_at
     console.log('[clone-voice] Updating status to analyzing...');
     await supabaseClient
       .from('voice_projects')
-      .update({ status: 'analyzing' })
+      .update({ 
+        status: 'analyzing',
+        last_generation_at: new Date().toISOString()
+      })
       .eq('id', projectId);
 
     // Step 1: Add voice to ElevenLabs with multiple samples

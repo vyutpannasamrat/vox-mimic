@@ -38,10 +38,31 @@ const GenerateVoiceDialog = ({
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    if (!scriptText.trim()) {
+    // P1 #9: Input validation
+    const trimmedScript = scriptText.trim();
+    if (!trimmedScript) {
       toast({
         title: "Script Required",
         description: "Please enter the text you want to convert to speech",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (trimmedScript.length > 10000) {
+      toast({
+        title: "Script Too Long",
+        description: "Script must be less than 10,000 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // P1 #6: Validate voice parameter ranges
+    if (stability < 0 || stability > 1 || similarityBoost < 0 || similarityBoost > 1 || style < 0 || style > 1) {
+      toast({
+        title: "Invalid Parameters",
+        description: "Voice parameters must be between 0 and 1",
         variant: "destructive",
       });
       return;
@@ -53,7 +74,7 @@ const GenerateVoiceDialog = ({
       const { error: updateError } = await supabase
         .from("voice_projects")
         .update({
-          script_text: scriptText,
+          script_text: trimmedScript,
           voice_stability: stability,
           voice_similarity_boost: similarityBoost,
           voice_style: style,
@@ -108,9 +129,10 @@ const GenerateVoiceDialog = ({
               onChange={(e) => setScriptText(e.target.value)}
               className="min-h-[120px] bg-background/50"
               disabled={loading}
+              maxLength={10000}
             />
             <p className="text-xs text-muted-foreground">
-              Enter the text that will be spoken in your cloned voice
+              Enter the text that will be spoken in your cloned voice ({scriptText.length}/10,000 characters)
             </p>
           </div>
 
