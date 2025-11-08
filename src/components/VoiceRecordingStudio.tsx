@@ -6,7 +6,6 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Mic, Square, Play, Pause, Upload, Trash2, CheckCircle } from "lucide-react";
 import { voiceTrainingPhrases } from "@/data/voiceTrainingPhrases";
-import lamejs from "lamejs";
 
 interface VoiceRecordingStudioProps {
   projectId: string;
@@ -60,48 +59,6 @@ export default function VoiceRecordingStudio({
     };
   }, []);
 
-  // Convert audio blob to MP3 format
-  const convertToMp3 = async (audioBlob: Blob): Promise<Blob> => {
-    try {
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioContext = new AudioContext();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      
-      const channels = audioBuffer.numberOfChannels;
-      const sampleRate = audioBuffer.sampleRate;
-      const samples = audioBuffer.getChannelData(0);
-      
-      // Convert float samples to 16-bit PCM
-      const samplesInt16 = new Int16Array(samples.length);
-      for (let i = 0; i < samples.length; i++) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        samplesInt16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-      }
-      
-      // Encode to MP3
-      const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128);
-      const mp3Data = [];
-      const sampleBlockSize = 1152;
-      
-      for (let i = 0; i < samplesInt16.length; i += sampleBlockSize) {
-        const sampleChunk = samplesInt16.subarray(i, i + sampleBlockSize);
-        const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-        if (mp3buf.length > 0) {
-          mp3Data.push(mp3buf);
-        }
-      }
-      
-      const mp3buf = mp3encoder.flush();
-      if (mp3buf.length > 0) {
-        mp3Data.push(mp3buf);
-      }
-      
-      return new Blob(mp3Data, { type: "audio/mpeg" });
-    } catch (error) {
-      console.error("Error converting to MP3:", error);
-      throw error;
-    }
-  };
 
   const startRecording = async () => {
     try {
@@ -117,28 +74,16 @@ export default function VoiceRecordingStudio({
       };
 
       mediaRecorder.onstop = async () => {
-        const webmBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioUrl = URL.createObjectURL(audioBlob);
         
-        try {
-          // Convert to MP3
-          const mp3Blob = await convertToMp3(webmBlob);
-          const audioUrl = URL.createObjectURL(mp3Blob);
-          
-          setClips((prev) =>
-            prev.map((clip, idx) =>
-              idx === currentClip
-                ? { ...clip, blob: mp3Blob, url: audioUrl, duration: recordingTime }
-                : clip
-            )
-          );
-        } catch (error) {
-          console.error("Error processing audio:", error);
-          toast({
-            title: "Processing Error",
-            description: "Failed to process audio recording. Please try again.",
-            variant: "destructive",
-          });
-        }
+        setClips((prev) =>
+          prev.map((clip, idx) =>
+            idx === currentClip
+              ? { ...clip, blob: audioBlob, url: audioUrl, duration: recordingTime }
+              : clip
+          )
+        );
 
         stream.getTracks().forEach((track) => track.stop());
         setRecordingTime(0);
@@ -239,15 +184,8 @@ export default function VoiceRecordingStudio({
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          const originalBlob = new Blob([e.target?.result as ArrayBuffer], { type: file.type });
-          
-          // Convert to MP3 if not already MP3
-          let finalBlob = originalBlob;
-          if (!file.type.includes("mpeg") && !file.type.includes("mp3")) {
-            finalBlob = await convertToMp3(originalBlob);
-          }
-          
-          const url = URL.createObjectURL(finalBlob);
+          const audioBlob = new Blob([e.target?.result as ArrayBuffer], { type: file.type });
+          const url = URL.createObjectURL(audioBlob);
 
           setClips((prev) => {
             const emptyIndex = prev.findIndex((c) => c.blob === null);
@@ -255,7 +193,7 @@ export default function VoiceRecordingStudio({
 
             return prev.map((c, idx) =>
               idx === emptyIndex
-                ? { ...c, blob: finalBlob, url, duration: 0 }
+                ? { ...c, blob: audioBlob, url, duration: 0 }
                 : c
             );
           });
@@ -292,10 +230,10 @@ export default function VoiceRecordingStudio({
       if (!clip.blob || clip.uploaded) continue;
 
       try {
-        const fileName = `${user.id}/${projectId}/clip_${clip.clipNumber}.mp3`;
+        const fileName = `${user.id}/${projectId}/clip_${clip.clipNumber}.webm`;
         const { error: uploadError } = await supabase.storage
           .from("voice-samples")
-          .upload(fileName, clip.blob, { upsert: true, contentType: 'audio/mpeg' });
+          .upload(fileName, clip.blob, { upsert: true, contentType: 'audio/webm' });
 
         if (uploadError) throw uploadError;
 
