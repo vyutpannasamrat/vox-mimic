@@ -212,7 +212,18 @@ serve(async (req) => {
         }
         
         const voiceArrayBuffer = await voiceBlob.arrayBuffer();
-        formData.append('files', new Blob([voiceArrayBuffer], { type: 'audio/mpeg' }), `sample_${i}.mp3`);
+        // Determine file extension and mime type from the sample URL
+        const fileExt = sample.sample_url.split('.').pop()?.toLowerCase() || 'webm';
+        const mimeTypes: Record<string, string> = {
+          'mp3': 'audio/mpeg',
+          'webm': 'audio/webm',
+          'wav': 'audio/wav',
+          'ogg': 'audio/ogg',
+          'm4a': 'audio/mp4',
+        };
+        const mimeType = mimeTypes[fileExt] || 'audio/webm';
+        
+        formData.append('files', new Blob([voiceArrayBuffer], { type: mimeType }), `sample_${i}.${fileExt}`);
         successfulSamples++;
         console.log(`[clone-voice] Downloaded sample ${i + 1}/${samples.length}`);
       } catch (error) {

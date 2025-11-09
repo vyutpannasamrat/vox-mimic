@@ -3,10 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { FileAudio, Loader2, Sparkles, Clock } from "lucide-react";
+import { FileAudio, Loader2, Sparkles, Clock, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import AudioPlayer from "./AudioPlayer";
 import GenerateVoiceDialog from "./GenerateVoiceDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface VoiceProject {
   id: string;
@@ -33,6 +35,8 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [progress, setProgress] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(0);
+  const [cancelling, setCancelling] = useState(false);
+  const { toast } = useToast();
   
   // Estimate progress and time based on status
   useEffect(() => {
@@ -63,6 +67,31 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
       setEstimatedTime(0);
     }
   }, [project.status]);
+  
+  const handleCancelGeneration = async () => {
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from('voice_projects')
+        .update({ status: 'training' })
+        .eq('id', project.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Generation Cancelled",
+        description: "Voice generation has been cancelled. You can try again with different settings.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Cancel Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
   
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -157,6 +186,27 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
                 : 'Finalizing voice clone...'}
             </p>
           </div>
+          {(project.status === 'analyzing' || project.status === 'generating') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelGeneration}
+              disabled={cancelling}
+              className="w-full text-destructive hover:text-destructive"
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancel Generation
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
 
