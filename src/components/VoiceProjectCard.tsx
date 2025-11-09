@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileAudio, Loader2, Sparkles } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { FileAudio, Loader2, Sparkles, Clock } from "lucide-react";
 import { format } from "date-fns";
 import AudioPlayer from "./AudioPlayer";
 import GenerateVoiceDialog from "./GenerateVoiceDialog";
@@ -30,6 +31,38 @@ interface VoiceProjectCardProps {
 
 const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState(0);
+  
+  // Estimate progress and time based on status
+  useEffect(() => {
+    const statusProgress: Record<string, { progress: number; timeMinutes: number }> = {
+      analyzing: { progress: 15, timeMinutes: 2 },
+      training: { progress: 45, timeMinutes: 3 },
+      generating: { progress: 75, timeMinutes: 1 },
+    };
+
+    const statusInfo = statusProgress[project.status];
+    if (statusInfo) {
+      setProgress(statusInfo.progress);
+      setEstimatedTime(statusInfo.timeMinutes);
+      
+      // Simulate progress increment for better UX
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          const nextProgress = prev + 1;
+          const maxProgress = statusInfo.progress + 25; // Allow progress up to next stage
+          return nextProgress < maxProgress ? nextProgress : prev;
+        });
+        setEstimatedTime((prev) => Math.max(0, prev - 0.1));
+      }, 3000); // Update every 3 seconds
+
+      return () => clearInterval(interval);
+    } else {
+      setProgress(0);
+      setEstimatedTime(0);
+    }
+  }, [project.status]);
   
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -100,14 +133,30 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
       )}
 
       {isProcessing && (
-        <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
-          <p className="text-sm text-primary">
-            {project.status === 'analyzing' 
-              ? '🎤 Analyzing your voice samples...'
-              : project.status === 'training'
-              ? '🧠 Training your custom voice model...'
-              : '🎵 Generating your cloned voice...'}
-          </p>
+        <div className="mb-4 space-y-3">
+          <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-primary font-medium">
+                {project.status === 'analyzing' 
+                  ? '🎤 Analyzing your voice samples...'
+                  : project.status === 'training'
+                  ? '🧠 Training your custom voice model...'
+                  : '🎵 Generating your cloned voice...'}
+              </p>
+              <div className="flex items-center gap-1 text-xs text-primary">
+                <Clock className="w-3 h-3" />
+                <span>~{Math.ceil(estimatedTime)} min</span>
+              </div>
+            </div>
+            <Progress value={progress} className="h-2" />
+            <p className="text-xs text-primary/70 mt-2">
+              {progress < 30 
+                ? 'Processing audio samples...' 
+                : progress < 60 
+                ? 'Building voice model...' 
+                : 'Finalizing voice clone...'}
+            </p>
+          </div>
         </div>
       )}
 
