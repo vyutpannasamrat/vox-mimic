@@ -51,13 +51,30 @@ export default function VoiceRecordingStudio({
   const progress = (uploadedCount / totalClips) * 100;
 
   useEffect(() => {
+    // Load existing uploaded clips from database
+    const loadUploadedClips = async () => {
+      const { data: samples } = await supabase
+        .from("voice_samples")
+        .select("clip_number")
+        .eq("project_id", projectId);
+      
+      if (samples && samples.length > 0) {
+        setClips(prev => prev.map(clip => ({
+          ...clip,
+          uploaded: samples.some(s => s.clip_number === clip.clipNumber)
+        })));
+      }
+    };
+    
+    loadUploadedClips();
+    
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       clips.forEach((clip) => {
         if (clip.url) URL.revokeObjectURL(clip.url);
       });
     };
-  }, []);
+  }, [projectId]);
 
 
   const startRecording = async () => {
@@ -223,7 +240,7 @@ export default function VoiceRecordingStudio({
       return;
     }
 
-    let uploadedCount = 0;
+    let newUploads = 0;
 
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i];
@@ -252,7 +269,7 @@ export default function VoiceRecordingStudio({
 
         if (dbError) throw dbError;
 
-        uploadedCount++;
+        newUploads++;
         setClips((prev) =>
           prev.map((c, idx) =>
             idx === i ? { ...c, uploaded: true } : c
@@ -268,15 +285,18 @@ export default function VoiceRecordingStudio({
       }
     }
 
-    // Update project clips_uploaded count
+    // Get total uploaded count from all clips
+    const totalUploaded = clips.filter(c => c.uploaded).length + newUploads;
+    
+    // Update project with total count
     await supabase
       .from("voice_projects")
-      .update({ clips_uploaded: uploadedCount })
+      .update({ clips_uploaded: totalUploaded })
       .eq("id", projectId);
 
     setUploading(false);
 
-    if (uploadedCount === totalClips) {
+    if (totalUploaded >= totalClips) {
       toast({
         title: "Upload Complete",
         description: `All ${totalClips} clips uploaded successfully!`,
@@ -284,8 +304,8 @@ export default function VoiceRecordingStudio({
       onComplete();
     } else {
       toast({
-        title: "Partial Upload",
-        description: `Uploaded ${uploadedCount} out of ${totalClips} clips.`,
+        title: "Clips Uploaded",
+        description: `Uploaded ${newUploads} clips. Total: ${totalUploaded}/${totalClips}`,
       });
     }
   };
