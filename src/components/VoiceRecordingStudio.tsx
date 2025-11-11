@@ -67,14 +67,17 @@ export default function VoiceRecordingStudio({
     };
     
     loadUploadedClips();
-    
+  }, [projectId]);
+
+  useEffect(() => {
+    // Cleanup timer and URLs on unmount
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       clips.forEach((clip) => {
         if (clip.url) URL.revokeObjectURL(clip.url);
       });
     };
-  }, [projectId]);
+  }, [clips]);
 
 
   const startRecording = async () => {
