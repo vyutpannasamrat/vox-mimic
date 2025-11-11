@@ -193,27 +193,32 @@ serve(async (req) => {
     for (let i = 0; i < Math.min(samples.length, 25); i++) {
       const sample = samples[i];
       try {
-        // Download with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        // Extract the file path from the sample URL
+        // sample.sample_url might be a full URL or just a path
+        const urlPath = sample.sample_url.includes('/storage/v1/object/public/')
+          ? sample.sample_url.split('/storage/v1/object/public/voice-samples/')[1]
+          : sample.sample_url.split('/voice-samples/')[1] || sample.sample_url;
         
-        const voiceResponse = await fetch(sample.sample_url, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        console.log(`[clone-voice] Downloading sample ${i}: ${urlPath}`);
         
-        if (!voiceResponse.ok) {
-          console.warn(`[clone-voice] Failed to fetch sample ${i}: HTTP ${voiceResponse.status}`);
+        // Download from Supabase storage using service role (has full access)
+        const { data: voiceData, error: downloadError } = await supabaseClient.storage
+          .from('voice-samples')
+          .download(urlPath);
+        
+        if (downloadError || !voiceData) {
+          console.warn(`[clone-voice] Failed to download sample ${i}:`, downloadError?.message);
           continue;
         }
         
-        const voiceBlob = await voiceResponse.blob();
-        if (voiceBlob.size === 0) {
+        if (voiceData.size === 0) {
           console.warn(`[clone-voice] Sample ${i} is empty`);
           continue;
         }
         
-        const voiceArrayBuffer = await voiceBlob.arrayBuffer();
+        const voiceArrayBuffer = await voiceData.arrayBuffer();
         // Determine file extension and mime type from the sample URL
-        const fileExt = sample.sample_url.split('.').pop()?.toLowerCase() || 'webm';
+        const fileExt = urlPath.split('.').pop()?.toLowerCase() || 'webm';
         const mimeTypes: Record<string, string> = {
           'mp3': 'audio/mpeg',
           'webm': 'audio/webm',
@@ -225,7 +230,7 @@ serve(async (req) => {
         
         formData.append('files', new Blob([voiceArrayBuffer], { type: mimeType }), `sample_${i}.${fileExt}`);
         successfulSamples++;
-        console.log(`[clone-voice] Downloaded sample ${i + 1}/${samples.length}`);
+        console.log(`[clone-voice] ✓ Downloaded sample ${i + 1}/${samples.length} (${voiceData.size} bytes)`);
       } catch (error) {
         console.warn(`[clone-voice] Failed to download sample ${i}:`, error);
       }
