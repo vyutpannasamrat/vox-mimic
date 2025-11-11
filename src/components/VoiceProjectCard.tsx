@@ -211,10 +211,20 @@ const VoiceProjectCard = ({ project }: VoiceProjectCardProps) => {
       )}
 
       {project.status === 'failed' && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-          <p className="text-sm text-destructive">
-            ⚠️ Voice cloning failed. Please try again.
-          </p>
+        <div className="mb-4 space-y-3">
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              ⚠️ Voice generation failed. This could be due to API limits, invalid audio, or network issues.
+            </p>
+          </div>
+          <Button
+            onClick={() => setShowGenerateDialog(true)}
+            variant="outline"
+            className="w-full border-primary/50 hover:bg-primary/10"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Retry Generation
+          </Button>
         </div>
       )}
 
