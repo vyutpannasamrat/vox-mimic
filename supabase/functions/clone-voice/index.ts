@@ -453,25 +453,28 @@ serve(async (req) => {
       }
     }
 
-    // Determine appropriate HTTP status code
-    let statusCode = 500;
+    // Always return 200 so the client can read the error details
+    // Include error type to help with categorization
+    let errorType = 'UNKNOWN_ERROR';
     if (error.message.includes('quota') || error.message.includes('limit')) {
-      statusCode = 402;
+      errorType = 'QUOTA_EXCEEDED';
     } else if (error.message.includes('invalid') || error.message.includes('format')) {
-      statusCode = 422;
+      errorType = 'INVALID_INPUT';
     } else if (error.message.includes('rate limit')) {
-      statusCode = 429;
+      errorType = 'RATE_LIMIT';
     } else if (error.message.includes('API key')) {
-      statusCode = 401;
+      errorType = 'INVALID_API_KEY';
     }
 
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: error.message,
+        errorType: errorType,
         details: 'Please check the error message and try again. If the problem persists, contact support.'
       }),
       {
-        status: statusCode,
+        status: 200, // Always return 200 so client can parse error details
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

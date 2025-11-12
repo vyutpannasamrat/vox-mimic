@@ -89,32 +89,37 @@ const GenerateVoiceDialog = ({
         body: { projectId },
       });
 
-      // Check for function errors and parse detailed error messages
-      if (response.error) {
-        console.error("Function invocation error:", response.error);
+      // Check for errors - edge function always returns 200 with success flag
+      if (response.error || (response.data && response.data.success === false)) {
+        console.error("Voice generation error:", response.error || response.data);
         
-        // Try to get detailed error from response data
-        let errorMessage = response.error.message || "Voice generation failed";
+        let errorMessage = "Voice generation failed";
         let errorTitle = "Generation Failed";
         
-        if (response.data && response.data.error) {
-          errorMessage = response.data.error;
+        // Parse error from response data
+        if (response.data && !response.data.success) {
+          errorMessage = response.data.error || errorMessage;
           
-          // Additional details if available
+          // Use errorType for better categorization
+          const errorType = response.data.errorType || '';
+          
+          if (errorType === 'INVALID_API_KEY') {
+            errorTitle = "Invalid API Key";
+          } else if (errorType === 'QUOTA_EXCEEDED') {
+            errorTitle = "Quota Exceeded";
+          } else if (errorType === 'INVALID_INPUT') {
+            errorTitle = "Invalid Input";
+          } else if (errorType === 'RATE_LIMIT') {
+            errorTitle = "Rate Limit Exceeded";
+          }
+          
+          // Add details if available
           if (response.data.details) {
             errorMessage += `\n\n${response.data.details}`;
           }
-          
-          // Customize title based on error content
-          if (errorMessage.includes("API key")) {
-            errorTitle = "Invalid API Key";
-          } else if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
-            errorTitle = "Quota Exceeded";
-          } else if (errorMessage.includes("audio format") || errorMessage.includes("invalid")) {
-            errorTitle = "Invalid Audio";
-          } else if (errorMessage.includes("rate limit")) {
-            errorTitle = "Rate Limit Exceeded";
-          }
+        } else if (response.error) {
+          // Fallback to response.error
+          errorMessage = response.error.message || errorMessage;
         }
         
         toast({
