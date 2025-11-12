@@ -85,11 +85,45 @@ const GenerateVoiceDialog = ({
       if (updateError) throw updateError;
 
       // Trigger clone-voice function
-      const { error: functionError } = await supabase.functions.invoke("clone-voice", {
+      const response = await supabase.functions.invoke("clone-voice", {
         body: { projectId },
       });
 
-      if (functionError) throw functionError;
+      // Check for function errors and parse detailed error messages
+      if (response.error) {
+        console.error("Function invocation error:", response.error);
+        
+        // Try to get detailed error from response data
+        let errorMessage = response.error.message || "Voice generation failed";
+        let errorTitle = "Generation Failed";
+        
+        if (response.data && response.data.error) {
+          errorMessage = response.data.error;
+          
+          // Additional details if available
+          if (response.data.details) {
+            errorMessage += `\n\n${response.data.details}`;
+          }
+          
+          // Customize title based on error content
+          if (errorMessage.includes("API key")) {
+            errorTitle = "Invalid API Key";
+          } else if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
+            errorTitle = "Quota Exceeded";
+          } else if (errorMessage.includes("audio format") || errorMessage.includes("invalid")) {
+            errorTitle = "Invalid Audio";
+          } else if (errorMessage.includes("rate limit")) {
+            errorTitle = "Rate Limit Exceeded";
+          }
+        }
+        
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Generation Started!",
@@ -99,9 +133,13 @@ const GenerateVoiceDialog = ({
       onOpenChange(false);
       setScriptText("");
     } catch (error: any) {
+      console.error("Voice generation error:", error);
+      
+      const errorMessage = error.message || "An unexpected error occurred. Please try again.";
+      
       toast({
         title: "Generation Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
